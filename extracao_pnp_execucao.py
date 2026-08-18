@@ -33,9 +33,9 @@ def extrair_linhas(fonte):
     return base["Original Line"].dropna().unique().tolist()
 
 
-def tempo_total_de_paradas(fonte):
+def total_de_eventos_de_paradas(fonte):
     base = carregar_dataframe(fonte)
-    return base["Bottleneck Duration Minutes"].count()
+    return len(base)
 
 
 def extrair_pnp_reclassifica_para_tempo_em_producao(

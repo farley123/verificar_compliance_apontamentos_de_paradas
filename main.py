@@ -9,7 +9,7 @@ from extracao_pnp_execucao import (
     extrair_pnp_reclassifica_para_tempo_em_producao,
     extrair_pnp_reclassifica_para_tempo_ocioso,
     extrair_pp_reclassifica_para_tempo_ocioso,
-    tempo_total_de_paradas,
+    total_de_eventos_de_paradas,
     extrair_tempo_em_execucao_com_comentario,
     extrair_parada_tecnica_sem_amm,
     extrair_tempo_ocioso_com_comentario_suspeito
@@ -87,18 +87,19 @@ if __name__ == "__main__":
             page.update()
 
         def calcular_porcentagem_de_reclassificacao(
-                tempo_reclassificado: float, tempo_total: float
+                quanty_reclassificado: float, quanty_total: float
         ):
-            if tempo_reclassificado > 0:
-                porcentagem_de_reclassificacao.value = (
-                    f"{str(round(tempo_reclassificado / tempo_total * 100))} %"
-                )
+            if quanty_reclassificado > 0:
+                porcentagem = (quanty_reclassificado / quanty_total) * 100
+                porcentagem_de_reclassificacao.value = f"{porcentagem:.2f} %"
             else:
                 porcentagem_de_reclassificacao.value = " 0 %"
 
         def executar_extracao(path: str, linha: str):
             progresso.visible = True
             container_tabela.controls.clear()
+            porcentagem_de_reclassificacao.value=''
+            total_de_eventos_periodo_selecionado.value=''
             page.update()
             alternar_bloqueio_interface(True)
 
@@ -142,8 +143,8 @@ if __name__ == "__main__":
                     page.run_thread(cancelar)
                     return
 
-                tempo_total = float(tempo_total_de_paradas(path))
-                tempo_reclassificado = float(df_resultado[1])
+                total_de_eventos = total_de_eventos_de_paradas(path)
+                eventos_reclassificados = float(df_resultado[1])
 
                 def atualizar_ui():
                     nonlocal df_global, pagina_atual
@@ -152,7 +153,7 @@ if __name__ == "__main__":
 
                     total_paginas = (len(df_global) // TAMANHO_PAGINA) + (
                         1 if len(df_global) % TAMANHO_PAGINA > 0 else 0)
-                    lbl_pagina.value = f"Página 1 de {total_paginas} ({len(df_global)} registros)"
+                    lbl_pagina.value = f"Página 1 de {total_paginas} ({len(df_global)} registros filtrados)"
 
                     tabela = criar_tabela_paginada(df_global, pagina_atual)
 
@@ -162,7 +163,8 @@ if __name__ == "__main__":
                     )
                     container_tabela.controls.append(controles_paginacao)
 
-                    calcular_porcentagem_de_reclassificacao(tempo_reclassificado, tempo_total)
+                    calcular_porcentagem_de_reclassificacao(eventos_reclassificados, total_de_eventos)
+                    total_de_eventos_periodo_selecionado.value=total_de_eventos
                     progresso.visible = False
                     page.update()
                     alternar_bloqueio_interface(False)
@@ -173,6 +175,10 @@ if __name__ == "__main__":
 
         # SELEÇÃO E CARREGAMENTO DA PLANILHA EM SEGUNDO PLANO
         async def handle_save_file(e):
+            porcentagem_de_reclassificacao.value=''
+            total_de_eventos_periodo_selecionado.value=''
+            container_tabela.controls.clear()
+            dropdown_controle.value=''
             picker = ft.FilePicker()
             page.services.append(picker)
 
@@ -185,6 +191,7 @@ if __name__ == "__main__":
                 arquivo.value = caminho_arquivo
 
                 progresso.visible = True
+                alternar_bloqueio_interface(True)
                 page.update()
 
                 def carregar_linhas_background():
@@ -199,6 +206,7 @@ if __name__ == "__main__":
                             DropdownOption(text="TODAS AS LINHAS", key="TODAS AS LINHAS")
                         )
                         progresso.visible = False
+                        alternar_bloqueio_interface(False)
                         page.update()
 
                     page.run_thread(atualizar_dropdown_ui)
@@ -229,7 +237,11 @@ if __name__ == "__main__":
                 ),
                 linha := ft.Row(
                     controls=[
-                        dropdown_controle := ft.Dropdown(on_select=ao_mudar_dropdown),
+                        dropdown_controle := ft.Dropdown(on_select=ao_mudar_dropdown,width=350),
+                        porcentagem_de_reclassificacao := ft.TextField(
+                            label="% de reclassificações", read_only=True, width=200
+                        ),
+                        total_de_eventos_periodo_selecionado := ft.TextField(label="Total de eventos", read_only=True, width=200),
                         radio_button := ft.RadioGroup(
                             value="pnp_execucao",
                             content=ft.Column(
@@ -257,6 +269,11 @@ if __name__ == "__main__":
                                                 label="TEMPO EM EXECUÇÃO COM COMENTARIO",
                                                 value="tempo_em_execucao_com_comentario",
                                             ),
+
+                                        ]
+                                    ),
+                                    ft.Row(
+                                        controls=[
                                             ft.Radio(
                                                 label="PARADA TÉCNICA SEM AMM",
                                                 value="parada_tcnica_sem_amm",
@@ -271,9 +288,7 @@ if __name__ == "__main__":
                             ),
                             on_change=ao_mudar_radio_button,
                         ),
-                        porcentagem_de_reclassificacao := ft.TextField(
-                            label="% de reclassificações", read_only=True, width=200
-                        ),
+
                     ]
                 ),
                 progresso,
