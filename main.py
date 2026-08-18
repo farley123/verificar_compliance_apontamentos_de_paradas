@@ -18,24 +18,6 @@ from extracao_pnp_execucao import (
 if __name__ == "__main__":
     import flet as ft
 
-
-    def criar_tabela_flet(df) -> ft.DataTable:
-        # cria o cabeçalho
-        columns = [ft.DataColumn(ft.Text(col)) for col in df.columns]
-        # cria as linhas
-        rows = []
-        for _, row in df.iterrows():
-            cells = [ft.DataCell(ft.Text(str(val))) for val in row]
-            rows.append(ft.DataRow(cells=cells))
-        return ft.DataTable(
-            columns=columns,
-            rows=rows,
-            border=ft.border.Border.all(1, ft.Colors.GREY_300),
-            vertical_lines=ft.border.Border.all(0.5, ft.Colors.GREY_200),
-            horizontal_lines=ft.border.Border.all(0.5, ft.Colors.GREY_200),
-        )
-
-
     def main(page: ft.Page):
         page.title = "Verificar reclassificações DMO"
         page.vertical_alignment = ft.MainAxisAlignment.START
@@ -47,6 +29,55 @@ if __name__ == "__main__":
 
         # Instancia o ProgressBar (inicia invisível)
         progresso = ft.ProgressBar(visible=False, width=1400)
+
+        # Controle de paginação
+        TAMANHO_PAGINA = 100
+        pagina_atual = 0
+        df_global = None
+
+        def criar_tabela_paginada(df, pagina: int) -> ft.DataTable:
+            inicio = pagina * TAMANHO_PAGINA
+            fim = inicio + TAMANHO_PAGINA
+            df_fatia = df.iloc[inicio:fim]
+
+            columns = [ft.DataColumn(ft.Text(col)) for col in df_fatia.columns]
+            rows = [
+                ft.DataRow(cells=[ft.DataCell(ft.Text(str(val))) for val in row])
+                for _, row in df_fatia.iterrows()
+            ]
+
+            return ft.DataTable(
+                columns=columns,
+                rows=rows,
+                border=ft.border.Border.all(1, ft.Colors.GREY_300),
+                vertical_lines=ft.border.Border.all(0.5, ft.Colors.GREY_200),
+                horizontal_lines=ft.border.Border.all(0.5, ft.Colors.GREY_200),
+            )
+
+        lbl_pagina = ft.Text("Página 1")
+
+        def mudar_pagina(delta: int):
+            nonlocal pagina_atual, df_global
+            if df_global is None:
+                return
+
+            total_paginas = (len(df_global) // TAMANHO_PAGINA) + (1 if len(df_global) % TAMANHO_PAGINA > 0 else 0)
+            nova_pagina = pagina_atual + delta
+
+            if 0 <= nova_pagina < total_paginas:
+                pagina_atual = nova_pagina
+                lbl_pagina.value = f"Página {pagina_atual + 1} de {total_paginas} ({len(df_global)} registros)"
+
+                tabela = criar_tabela_paginada(df_global, pagina_atual)
+                container_tabela.controls[0] = ft.Row(controls=[tabela], scroll=ft.ScrollMode.ALWAYS, expand=True)
+                page.update()
+
+        btn_anterior = ft.Button("Anterior", on_click=lambda e: mudar_pagina(-1))
+        btn_proximo = ft.Button("Próximo", on_click=lambda e: mudar_pagina(1))
+        controles_paginacao = ft.Row(
+            controls=[btn_anterior, lbl_pagina, btn_proximo],
+            alignment=ft.MainAxisAlignment.CENTER
+        )
 
         def alternar_bloqueio_interface(bloquear: bool):
             progresso.visible = bloquear
@@ -70,6 +101,7 @@ if __name__ == "__main__":
             container_tabela.controls.clear()
             page.update()
             alternar_bloqueio_interface(True)
+
             def rodar_em_background():
                 linha_f = None if linha == "TODAS AS LINHAS" else linha
 
@@ -110,17 +142,27 @@ if __name__ == "__main__":
                     page.run_thread(cancelar)
                     return
 
-                tabela = criar_tabela_flet(df_resultado[0])
                 tempo_total = float(tempo_total_de_paradas(path))
                 tempo_reclassificado = float(df_resultado[1])
 
                 def atualizar_ui():
+                    nonlocal df_global, pagina_atual
+                    df_global = df_resultado[0]
+                    pagina_atual = 0
+
+                    total_paginas = (len(df_global) // TAMANHO_PAGINA) + (
+                        1 if len(df_global) % TAMANHO_PAGINA > 0 else 0)
+                    lbl_pagina.value = f"Página 1 de {total_paginas} ({len(df_global)} registros)"
+
+                    tabela = criar_tabela_paginada(df_global, pagina_atual)
+
+                    container_tabela.controls.clear()
                     container_tabela.controls.append(
-                        ft.Row(controls=[tabela], scroll=ft.ScrollMode.ALWAYS,expand=True)
+                        ft.Row(controls=[tabela], scroll=ft.ScrollMode.ALWAYS, expand=True)
                     )
-                    calcular_porcentagem_de_reclassificacao(
-                        tempo_reclassificado, tempo_total
-                    )
+                    container_tabela.controls.append(controles_paginacao)
+
+                    calcular_porcentagem_de_reclassificacao(tempo_reclassificado, tempo_total)
                     progresso.visible = False
                     page.update()
                     alternar_bloqueio_interface(False)
@@ -142,11 +184,9 @@ if __name__ == "__main__":
                 caminho_arquivo = files[0].path
                 arquivo.value = caminho_arquivo
 
-                # Exibe a barra de progresso imediatamente ao escolher o arquivo
                 progresso.visible = True
                 page.update()
 
-                # Processa a leitura pesada das linhas em uma thread separada
                 def carregar_linhas_background():
                     linhas_extraidas = extrair_linhas(caminho_arquivo)
 
@@ -158,7 +198,6 @@ if __name__ == "__main__":
                         dropdown_controle.options.append(
                             DropdownOption(text="TODAS AS LINHAS", key="TODAS AS LINHAS")
                         )
-                        # Oculta a barra de progresso e atualiza a tela
                         progresso.visible = False
                         page.update()
 
@@ -228,15 +267,12 @@ if __name__ == "__main__":
                                             ),
                                         ]
                                     )
-
-
-
                                 ]
                             ),
                             on_change=ao_mudar_radio_button,
                         ),
                         porcentagem_de_reclassificacao := ft.TextField(
-                            label="% de reclassificações", read_only=True,width=200
+                            label="% de reclassificações", read_only=True, width=200
                         ),
                     ]
                 ),
@@ -245,6 +281,5 @@ if __name__ == "__main__":
             ],
         )
         page.add(coluna)
-
 
     ft.run(main)
