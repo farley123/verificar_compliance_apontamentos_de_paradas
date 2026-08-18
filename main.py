@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
 
     def main(page: ft.Page):
-        page.title = "Verificar reclassificações"
+        page.title = "Verificar reclassificações DMO"
         page.vertical_alignment = ft.MainAxisAlignment.START
         page.scroll = None
         page.window.width = 1650
