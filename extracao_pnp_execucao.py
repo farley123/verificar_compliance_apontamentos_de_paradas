@@ -134,15 +134,16 @@ def extrair_parada_tecnica_sem_amm(fonte, nome_do_recurso: str = None):
     base = carregar_dataframe(fonte)
     base['AMM Work Order']=base['AMM Work Order'].fillna('sem ordem')
     motivos=[
-        'Manut Corret Elétrica/Autom/Instrum',
-        'Pequena Parada Técnica',
-        'Manutenção Corret. Mec. de Embalagem',
-        'Manutenção Corret. Mecânica geral',
         'Manut Planejada Mec Geral',
-        'Manut. Planej. Autônoma',
-        'Manut. Planej. Técnica Elétrica Automação',
         'Manut. Planej. Técnica Mecânica',
         'Manut. Planej. Técnica Mecânica de Embalagem'
+        
+        'Manut Corret Elétrica/Autom/Instrum',
+        'Manutenção Corret. Mec de Embalagem',
+        'Manutenção Corret. Mecânica geral',
+        'Pequena.Parada.Técnica',
+        'Pequena Parada Técnica',
+        'Pequenas Paradas Técnicas'
 
     ]
     query_str="`Motivo reclassificado` in @motivos and `AMM Work Order`=='sem ordem'"
