@@ -6,6 +6,7 @@ from openpyxl.cell import read_only
 from extracao_pnp_execucao import (
     extrair_linhas,
     extrair_parada_planejada_com_comentario_suspeito,
+    extrair_pnp_reclassifica_para_pp,
     extrair_pnp_reclassifica_para_tempo_em_producao,
     extrair_pnp_reclassifica_para_tempo_ocioso,
     extrair_pp_reclassifica_para_tempo_ocioso,
@@ -86,19 +87,15 @@ if __name__ == "__main__":
             radio_button.disabled = bloquear
             page.update()
 
-        def calcular_porcentagem_de_reclassificacao(
-                quanty_reclassificado: float, quanty_total: float
-        ):
-            if quanty_reclassificado > 0:
-                porcentagem = (quanty_reclassificado / quanty_total) * 100
-                porcentagem_de_reclassificacao.value = f"{porcentagem:.2f} %"
-            else:
-                porcentagem_de_reclassificacao.value = " 0 %"
+        def calcular_horas_de_reclassificacao(quanty_reclassificado: float):
+            horas = quanty_reclassificado / 60
+            horas_de_reclassificação.value = f"{horas:.2f} horas"
+
 
         def executar_extracao(path: str, linha: str):
             progresso.visible = True
             container_tabela.controls.clear()
-            porcentagem_de_reclassificacao.value=''
+            horas_de_reclassificação.value=''
             total_de_eventos_periodo_selecionado.value=''
             page.update()
             alternar_bloqueio_interface(True)
@@ -110,6 +107,8 @@ if __name__ == "__main__":
                     df_resultado = extrair_pnp_reclassifica_para_tempo_em_producao(
                         path, linha_f
                     )
+                elif radio_button.value =='pnp_pp':
+                    df_resultado = extrair_pnp_reclassifica_para_pp(path, linha_f)
                 elif radio_button.value == "pnp_ocioso":
                     df_resultado = extrair_pnp_reclassifica_para_tempo_ocioso(
                         path, linha_f
@@ -145,6 +144,7 @@ if __name__ == "__main__":
 
                 total_de_eventos = total_de_eventos_de_paradas(path)
                 eventos_reclassificados = float(df_resultado[1])
+                horas_reclassificadas = df_resultado[2]
 
                 def atualizar_ui():
                     nonlocal df_global, pagina_atual
@@ -163,7 +163,7 @@ if __name__ == "__main__":
                     )
                     container_tabela.controls.append(controles_paginacao)
 
-                    calcular_porcentagem_de_reclassificacao(eventos_reclassificados, total_de_eventos)
+                    calcular_horas_de_reclassificacao(horas_reclassificadas)
                     total_de_eventos_periodo_selecionado.value=total_de_eventos
                     progresso.visible = False
                     page.update()
@@ -175,7 +175,7 @@ if __name__ == "__main__":
 
         # SELEÇÃO E CARREGAMENTO DA PLANILHA EM SEGUNDO PLANO
         async def handle_save_file(e):
-            porcentagem_de_reclassificacao.value=''
+            horas_de_reclassificação.value=''
             total_de_eventos_periodo_selecionado.value=''
             container_tabela.controls.clear()
             dropdown_controle.value=''
@@ -238,8 +238,8 @@ if __name__ == "__main__":
                 linha := ft.Row(
                     controls=[
                         dropdown_controle := ft.Dropdown(on_select=ao_mudar_dropdown,width=350),
-                        porcentagem_de_reclassificacao := ft.TextField(
-                            label="% de reclassificações", read_only=True, width=200
+                        horas_de_reclassificação := ft.TextField(
+                            label="Tempo reclassificado em horas", read_only=True, width=200
                         ),
                         total_de_eventos_periodo_selecionado := ft.TextField(label="Total de eventos", read_only=True, width=200),
                         radio_button := ft.RadioGroup(
@@ -248,6 +248,9 @@ if __name__ == "__main__":
                                 controls=[
                                     ft.Row(
                                         controls=[
+                                            ft.Radio(
+                                                label='PNP/PP',value='pnp_pp'
+                                            ),
                                             ft.Radio(
                                                 label="PNP/EXECUÇÃO", value="pnp_execucao"
                                             ),

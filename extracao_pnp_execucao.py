@@ -38,6 +38,23 @@ def total_de_eventos_de_paradas(fonte):
     return len(base)
 
 
+def extrair_pnp_reclassifica_para_pp(
+    fonte, nome_do_recurso: str = None
+):
+    base = carregar_dataframe(fonte)
+
+    mask = (base["Categoria original"] == "Paradas não planejadas") & (
+        base["Categoria reclassificada"] == "Paradas planejadas"
+    )
+
+    if nome_do_recurso:
+        mask &= base["Original Line"] == nome_do_recurso
+
+    resultado = base.loc[mask, COLUNAS_PROJETO].copy()
+    resultado["Comentário"] = resultado["Comentário"].fillna("sem comentários")
+
+    return (resultado, resultado["Bottleneck Duration Minutes"].count(), resultado['Bottleneck Duration Minutes'].sum())
+
 def extrair_pnp_reclassifica_para_tempo_em_producao(
     fonte, nome_do_recurso: str = None
 ):
@@ -53,7 +70,8 @@ def extrair_pnp_reclassifica_para_tempo_em_producao(
     resultado = base.loc[mask, COLUNAS_PROJETO].copy()
     resultado["Comentário"] = resultado["Comentário"].fillna("sem comentários")
 
-    return (resultado, resultado["Bottleneck Duration Minutes"].count())
+    return (resultado, resultado["Bottleneck Duration Minutes"].count(), resultado['Bottleneck Duration Minutes'].sum())
+
 
 
 def extrair_pnp_reclassifica_para_tempo_ocioso(
@@ -71,7 +89,7 @@ def extrair_pnp_reclassifica_para_tempo_ocioso(
     resultado = base.loc[mask, COLUNAS_PROJETO].copy()
     resultado["Comentário"] = resultado["Comentário"].fillna("sem comentários")
 
-    return (resultado, resultado["Bottleneck Duration Minutes"].count())
+    return (resultado, resultado["Bottleneck Duration Minutes"].count(), resultado['Bottleneck Duration Minutes'].sum())
 
 
 def extrair_pp_reclassifica_para_tempo_ocioso(
@@ -89,7 +107,7 @@ def extrair_pp_reclassifica_para_tempo_ocioso(
     resultado = base.loc[mask, COLUNAS_PROJETO].copy()
     resultado["Comentário"] = resultado["Comentário"].fillna("sem comentários")
 
-    return (resultado, resultado["Bottleneck Duration Minutes"].count())
+    return (resultado, resultado["Bottleneck Duration Minutes"].count(), resultado['Bottleneck Duration Minutes'].sum())
 
 
 def extrair_parada_planejada_com_comentario_suspeito(
@@ -116,7 +134,7 @@ def extrair_parada_planejada_com_comentario_suspeito(
     resultado = base.loc[mask, COLUNAS_PROJETO].copy()
     resultado["Comentário"] = resultado["Comentário"].fillna("sem comentários")
 
-    return (resultado, resultado["Bottleneck Duration Minutes"].count())
+    return (resultado, resultado["Bottleneck Duration Minutes"].count(), resultado['Bottleneck Duration Minutes'].sum())
 
 def extrair_tempo_em_execucao_com_comentario(fonte, nome_do_recurso: str = None):
     base = carregar_dataframe(fonte)
@@ -128,7 +146,7 @@ def extrair_tempo_em_execucao_com_comentario(fonte, nome_do_recurso: str = None)
     if nome_do_recurso:
         mask_final = mask_final & (base["Original Line"] == nome_do_recurso)
     resultado = base.loc[mask_final]
-    return(resultado, resultado["Bottleneck Duration Minutes"].count())
+    return (resultado, resultado["Bottleneck Duration Minutes"].count(), resultado['Bottleneck Duration Minutes'].sum())
 
 def extrair_parada_tecnica_sem_amm(fonte, nome_do_recurso: str = None):
     base = carregar_dataframe(fonte)
@@ -173,4 +191,4 @@ def extrair_tempo_ocioso_com_comentario_suspeito(fonte, nome_do_recurso: str = N
         mask_final = mask_final & (base["Original Line"] == nome_do_recurso)
     resultado = base.loc[mask_final]
 
-    return (resultado, resultado["Bottleneck Duration Minutes"].count())
+    return (resultado, resultado["Bottleneck Duration Minutes"].count(), resultado['Bottleneck Duration Minutes'].sum())
