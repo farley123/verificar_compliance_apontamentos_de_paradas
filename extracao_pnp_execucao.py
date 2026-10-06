@@ -168,7 +168,7 @@ def extrair_parada_tecnica_sem_amm(fonte, nome_do_recurso: str = None):
     if nome_do_recurso:
         query_str +='and `Original Line` == @nome_do_recurso'
     base=base.query(query_str)
-    return (base,base["Bottleneck Duration Minutes"].count())
+    return (base,base["Bottleneck Duration Minutes"].count(),base["Bottleneck Duration Minutes"].sum())
 
 def extrair_tempo_ocioso_com_comentario_suspeito(fonte, nome_do_recurso: str = None):
     base = carregar_dataframe(fonte)
